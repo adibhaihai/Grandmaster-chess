@@ -52,7 +52,7 @@
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
             padding: 30px;
             width: 90%;
-            max-width: 650px;
+            max-width: 550px;
             text-align: center;
             position: relative;
             overflow: hidden;
@@ -108,7 +108,7 @@
             grid-template-rows: repeat(8, 1fr);
             gap: 0;
             width: 100%;
-            max-width: 500px;
+            max-width: 400px;
             margin: 0 auto;
             border: 3px solid #555;
             border-radius: 5px;
@@ -122,7 +122,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 3em;
+            font-size: 2em;
             cursor: pointer;
             position: relative;
             transition: all 0.2s;
@@ -179,7 +179,7 @@
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 15px;
+            gap: 10px;
         }
         
         .move-input-container {
@@ -189,13 +189,13 @@
         }
         
         input {
-            padding: 12px 15px;
+            padding: 10px 12px;
             border: 2px solid #ddd;
             border-radius: 8px;
-            font-size: 1em;
+            font-size: 0.9em;
             text-align: center;
             transition: all 0.3s;
-            width: 150px;
+            width: 130px;
         }
         
         input:focus {
@@ -208,10 +208,10 @@
             background: linear-gradient(135deg, #6e8efb, #a777e3);
             color: white;
             border: none;
-            padding: 12px 20px;
+            padding: 10px 15px;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 1em;
+            font-size: 0.9em;
             font-weight: bold;
             transition: all 0.3s;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
@@ -230,10 +230,10 @@
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 15px;
-            margin-top: 25px;
+            gap: 10px;
+            margin-top: 20px;
             background: rgba(255,255,255,0.8);
-            padding: 15px;
+            padding: 12px;
             border-radius: 10px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.05);
         }
@@ -241,29 +241,29 @@
         .legend-item {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 1.1em;
+            gap: 6px;
+            font-size: 0.9em;
         }
         
         .legend-emoji {
-            font-size: 1.3em;
+            font-size: 1.1em;
         }
         
         .status {
-            margin-top: 20px;
+            margin-top: 15px;
             font-weight: bold;
-            min-height: 24px;
-            font-size: 1.1em;
-            padding: 10px;
+            min-height: 22px;
+            font-size: 1em;
+            padding: 8px;
             border-radius: 5px;
             background-color: #f8f9fa;
         }
         
         .game-mode {
-            margin-top: 15px;
+            margin-top: 12px;
             display: flex;
             justify-content: center;
-            gap: 15px;
+            gap: 10px;
         }
         
         .game-mode button {
@@ -277,7 +277,7 @@
         
         @media (max-width: 600px) {
             .square {
-                font-size: 2.2em;
+                font-size: 1.6em;
             }
             
             .controls {
@@ -319,6 +319,7 @@
                 <button id="submit-move">Move</button>
             </div>
             <button id="new-game">New Game</button>
+            <button id="undo-move">Undo</button>
             <button id="flip-board">Flip Board</button>
         </div>
         
@@ -344,6 +345,7 @@
         let boardFlipped = false;
         let vsComputer = false;
         let computerColor = 'black';
+        let moveHistory = [];
         
         // Emoji pieces
         const pieces = {
@@ -381,6 +383,7 @@
             clearInterval(timerInterval);
             document.getElementById('game-time').textContent = '00:00:00';
             startTime = null;
+            moveHistory = [];
             
             // Create initial board position
             board = Array(8).fill().map(() => Array(8).fill(null));
@@ -408,7 +411,7 @@
             
             // If playing against computer and computer is white, make first move
             if (vsComputer && computerColor === 'white') {
-                setTimeout(computerMove, 500);
+                setTimeout(computerMove, 100);
             }
         }
         
@@ -450,8 +453,6 @@
                     if (piece) {
                         square.textContent = pieces[piece.color][piece.type];
                         square.style.cursor = 'pointer';
-                        
-                        // Add subtle shadow to pieces
                         square.style.textShadow = `1px 1px 2px rgba(0,0,0,${piece.color === 'white' ? '0.3' : '0.5'})`;
                     }
                     
@@ -488,9 +489,9 @@
                     possibleMoves = [];
                     renderBoard();
                     
-                    // If playing against computer, let computer move
+                    // If playing against computer and it's computer's turn, make computer move
                     if (vsComputer && gameActive && currentPlayer === computerColor) {
-                        setTimeout(computerMove, 500);
+                        setTimeout(computerMove, 300); // Small delay for better UX
                     }
                 }
                 // Otherwise, deselect
@@ -627,6 +628,16 @@
             }
             
             const piece = board[fromRow][fromCol];
+            const capturedPiece = board[toRow][toCol];
+            
+            // Store move in history for undo
+            moveHistory.push({
+                from: { row: fromRow, col: fromCol },
+                to: { row: toRow, col: toCol },
+                piece: { ...piece },
+                captured: capturedPiece ? { ...capturedPiece } : null,
+                promoted: false
+            });
             
             // Move the piece
             board[toRow][toCol] = piece;
@@ -635,6 +646,7 @@
             // Check for pawn promotion
             if (piece.type === 'pawn' && (toRow === 0 || toRow === 7)) {
                 board[toRow][toCol].type = 'queen';
+                moveHistory[moveHistory.length - 1].promoted = true;
                 updateStatus(`Pawn promoted to queen!`);
             }
             
@@ -649,6 +661,45 @@
                 updateStatus(`🎉 ${winner} wins by checkmate!`);
                 clearInterval(timerInterval);
             }
+        }
+        
+        // Undo the last move
+        function undoMove() {
+            if (moveHistory.length === 0 || !gameActive) return;
+            
+            const lastMove = moveHistory.pop();
+            
+            // Restore the moved piece
+            board[lastMove.from.row][lastMove.from.col] = lastMove.piece;
+            
+            // Restore captured piece or clear the square
+            if (lastMove.captured) {
+                board[lastMove.to.row][lastMove.to.col] = lastMove.captured;
+            } else {
+                board[lastMove.to.row][lastMove.to.col] = null;
+            }
+            
+            // If the move was a promotion, revert the piece type
+            if (lastMove.promoted) {
+                board[lastMove.from.row][lastMove.from.col].type = 'pawn';
+            }
+            
+            // Switch back to the previous player
+            currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
+            updatePlayerTurn();
+            
+            // Clear selection and possible moves
+            selectedSquare = null;
+            possibleMoves = [];
+            
+            // If playing against computer and we're undoing the computer's move,
+            // we need to undo the player's previous move as well
+            if (vsComputer && currentPlayer === computerColor && moveHistory.length > 0) {
+                undoMove();
+            }
+            
+            renderBoard();
+            updateStatus("Move undone");
         }
         
         // Check if coordinates are within bounds
@@ -711,10 +762,9 @@
             // Evaluate moves and pick one
             const bestMove = findBestMove(allMoves);
             
-            // Make the move after a short delay for realism
-            setTimeout(() => {
-                makeMove(bestMove.from.row, bestMove.from.col, bestMove.to.row, bestMove.to.col);
-            }, 300);
+            // Make the move
+            makeMove(bestMove.from.row, bestMove.from.col, bestMove.to.row, bestMove.to.col);
+            renderBoard();
         }
         
         // Simple AI to find the best move
@@ -818,6 +868,11 @@
             
             makeMove(from.row, from.col, to.row, to.col);
             document.getElementById('move-input').value = '';
+            
+            // If playing against computer and it's computer's turn, make computer move
+            if (vsComputer && gameActive && currentPlayer === computerColor) {
+                setTimeout(computerMove, 300); // Small delay for better UX
+            }
         });
         
         // Parse algebraic notation to coordinates
@@ -846,6 +901,9 @@
             boardFlipped = !boardFlipped;
             renderBoard();
         });
+        
+        // Undo move button
+        document.getElementById('undo-move').addEventListener('click', undoMove);
         
         // Play vs Human button
         document.getElementById('play-human').addEventListener('click', () => {
